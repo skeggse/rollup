@@ -36,6 +36,9 @@ export function assignChunkIds(
 				pattern = outputOptions.entryFileNames || '[name].js';
 				patternName = 'output.entryFileNames';
 			} else {
+				if (inputOptions.disjoinChunks) {
+					console.warn('disjoinChunks but hashed filename');
+				}
 				pattern = outputOptions.chunkFileNames || '[name]-[hash].js';
 				patternName = 'output.chunkFileNames';
 			}

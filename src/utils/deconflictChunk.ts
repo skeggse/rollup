@@ -8,6 +8,7 @@ import { getSafeName } from './safeName';
 
 const DECONFLICT_IMPORTED_VARIABLES_BY_FORMAT: {
 	[format: string]: (
+		chunk: Chunk,
 		usedNames: NameCollection,
 		imports: Set<Variable>,
 		dependencies: (ExternalModule | Chunk)[],
@@ -24,6 +25,7 @@ const DECONFLICT_IMPORTED_VARIABLES_BY_FORMAT: {
 };
 
 export function deconflictChunk(
+	chunk: Chunk,
 	modules: Module[],
 	dependencies: (ExternalModule | Chunk)[],
 	imports: Set<Variable>,
@@ -38,6 +40,7 @@ export function deconflictChunk(
 	addUsedGlobalNames(usedNames, modules);
 	deconflictTopLevelVariables(usedNames, modules);
 	DECONFLICT_IMPORTED_VARIABLES_BY_FORMAT[format](
+		chunk,
 		usedNames,
 		imports,
 		dependencies,
@@ -65,6 +68,7 @@ function addUsedGlobalNames(usedNames: NameCollection, modules: Module[]) {
 }
 
 function deconflictImportsEsm(
+	chunk: Chunk,
 	usedNames: NameCollection,
 	imports: Set<Variable>,
 	_dependencies: (ExternalModule | Chunk)[],
@@ -88,6 +92,7 @@ function deconflictImportsEsm(
 }
 
 function deconflictImportsOther(
+	chunk: Chunk,
 	usedNames: NameCollection,
 	imports: Set<Variable>,
 	dependencies: (ExternalModule | Chunk)[],
@@ -109,11 +114,11 @@ function deconflictImportsOther(
 				variable.setRenderNames(module.variableName, null);
 			}
 		} else {
-			const chunk = module.chunk;
+			// TODO: disjoinChunks?
 			if (chunk.exportMode === 'default' || (preserveModules && variable.isNamespace)) {
 				variable.setRenderNames(null, chunk.variableName);
 			} else {
-				variable.setRenderNames(chunk.variableName, module.chunk.getVariableExportName(variable));
+				variable.setRenderNames(chunk.variableName, chunk.getVariableExportName(variable));
 			}
 		}
 	}

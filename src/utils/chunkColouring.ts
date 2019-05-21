@@ -82,3 +82,54 @@ Try defining "${chunkName}" first in the manualChunks definitions of the Rollup 
 		addCurrentEntryColourToModule(currentEntry);
 	}
 }
+
+export function traverseDependencies(currentEntry: Module) {
+	// let currentEntryHash: Uint8Array;
+	let modulesVisitedForCurrentEntry: { [id: string]: Module };
+	// const handledEntryPoints: { [id: string]: boolean } = {};
+	// const dynamicImports: Module[] = [];
+
+	const addCurrentEntryColourToModule = (module: Module) => {
+		// if (currentEntry.chunkAlias) {
+		// 	module.chunkAlias = currentEntry.chunkAlias;
+		// // 	module.entryPointsHash = currentEntryHash;
+		// // } else {
+		// // 	Uint8ArrayXor(module.entryPointsHash, currentEntryHash);
+		// }
+
+		for (const dependency of module.dependencies) {
+			if (dependency instanceof ExternalModule || dependency.id in modulesVisitedForCurrentEntry) {
+				continue;
+			}
+			modulesVisitedForCurrentEntry[dependency.id] = dependency;
+			if (dependency.id !== currentEntry.id && !dependency.chunkAlias)
+				addCurrentEntryColourToModule(dependency);
+		}
+
+		// for (const { resolution } of module.dynamicImports) {
+		// 	if (
+		// 		resolution instanceof Module &&
+		// 		resolution.dynamicallyImportedBy.length > 0 &&
+		// 		!resolution.chunkAlias
+		// 	) {
+		// 		dynamicImports.push(resolution);
+		// 	}
+		// }
+	};
+
+	// handledEntryPoints[currentEntry.id] = true;
+	modulesVisitedForCurrentEntry = { [currentEntry.id]: currentEntry };
+	addCurrentEntryColourToModule(currentEntry);
+
+	return Object.values(modulesVisitedForCurrentEntry);
+
+	// for (currentEntry of dynamicImports) {
+	// 	if (handledEntryPoints[currentEntry.id]) {
+	// 		continue;
+	// 	}
+	// 	handledEntryPoints[currentEntry.id] = true;
+	// 	currentEntryHash = randomUint8Array(10);
+	// 	modulesVisitedForCurrentEntry = { [currentEntry.id]: null };
+	// 	addCurrentEntryColourToModule(currentEntry);
+	// }
+}

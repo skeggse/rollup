@@ -82,6 +82,7 @@ const inputOptions = {
   inlineDynamicImports,
   manualChunks,
   onwarn,
+  disjoinChunks,
   preserveModules,
 
   // danger zone

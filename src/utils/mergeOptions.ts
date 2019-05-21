@@ -199,6 +199,7 @@ function getInputOptions(
 		cache: getOption('cache'),
 		chunkGroupingSize: getOption('chunkGroupingSize', 5000),
 		context: config.context,
+		disjoinChunks: getOption('disjoinChunks'),
 		experimentalCacheExpiry: getOption('experimentalCacheExpiry', 10),
 		experimentalOptimizeChunks: getOption('experimentalOptimizeChunks'),
 		experimentalTopLevelAwait: getOption('experimentalTopLevelAwait'),

@@ -25,6 +25,8 @@ Basic options:
 --chunkFileNames <pattern>  Name pattern for emitted secondary chunks
 --compact                   Minify wrapper code
 --context <variable>        Specify top-level `this` value
+--disjoinChunks             Make each output chunks disjoint (forbids
+                              `manualChunks`)
 --dynamicImportFunction <name>         Rename the dynamic `import()` function
 --entryFileNames <pattern>  Name pattern for emitted entry chunks
 --environment <values>      Settings passed to config file (see example)

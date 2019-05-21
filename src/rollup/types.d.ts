@@ -269,6 +269,7 @@ export interface InputOptions {
 	cache?: false | RollupCache;
 	chunkGroupingSize?: number;
 	context?: string;
+	disjoinChunks?: boolean;
 	experimentalCacheExpiry?: number;
 	experimentalOptimizeChunks?: boolean;
 	experimentalTopLevelAwait?: boolean;

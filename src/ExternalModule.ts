@@ -1,11 +1,12 @@
 import ExternalVariable from './ast/variables/ExternalVariable';
+import Chunk from './Chunk';
 import Graph from './Graph';
 import { OutputOptions } from './rollup/types';
 import { makeLegal } from './utils/identifierHelpers';
 import { isAbsolute, normalize, relative } from './utils/path';
 
 export default class ExternalModule {
-	chunk: void;
+	chunks: Set<Chunk> = new Set();
 	declarations: { [name: string]: ExternalVariable };
 	execIndex: number;
 	exportedVariables: Map<ExternalVariable, string>;

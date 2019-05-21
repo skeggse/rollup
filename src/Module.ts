@@ -96,7 +96,7 @@ export interface AstContext {
 	importDescriptions: { [name: string]: ImportDescription };
 	includeDynamicImport: (node: Import) => void;
 	includeVariable: (variable: Variable) => void;
-	isCrossChunkImport: (importDescription: ImportDescription) => boolean;
+	// isCrossChunkImport: (importDescription: ImportDescription) => boolean;
 	magicString: MagicString;
 	module: Module; // not to be used for tree-shaking
 	moduleContext: string;
@@ -162,8 +162,8 @@ const MISSING_EXPORT_SHIM_DESCRIPTION: ExportDescription = {
 };
 
 export default class Module {
-	chunk: Chunk;
 	chunkAlias: string = undefined;
+	chunks: Set<Chunk> = new Set();
 	code: string;
 	comments: CommentDescription[] = [];
 	customTransformCache: boolean;
@@ -529,7 +529,7 @@ export default class Module {
 			importDescriptions: this.importDescriptions,
 			includeDynamicImport: this.includeDynamicImport.bind(this),
 			includeVariable: this.includeVariable.bind(this),
-			isCrossChunkImport: importDescription => importDescription.module.chunk !== this.chunk,
+			// isCrossChunkImport: importDescription => !Array.from(importDescription.module.chunks).some((chunk) => this.chunks.has(chunk)),
 			magicString: this.magicString,
 			module: this,
 			moduleContext: this.context,

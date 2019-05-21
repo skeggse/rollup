@@ -40,6 +40,7 @@ export default { // can be an array (for multiple inputs)
   inlineDynamicImports,
   manualChunks,
   onwarn,
+  disjoinChunks,
   preserveModules,
 
   // danger zone
@@ -207,6 +208,8 @@ Many options have command line equivalents. In those cases, any arguments passed
 --chunkFileNames <pattern>  Name pattern for emitted secondary chunks
 --compact                   Minify wrapper code
 --context <variable>        Specify top-level `this` value
+--disjoinChunks             Make each output chunks disjoint (forbids
+                              `manualChunks`)
 --dynamicImportFunction <name>         Rename the dynamic `import()` function
 --entryFileNames <pattern>  Name pattern for emitted entry chunks
 --environment <values>      Settings passed to config file (see example)

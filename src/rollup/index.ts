@@ -91,6 +91,11 @@ function getInputOptions(rawInputOptions: GenericConfigObject): any {
 				code: 'INVALID_OPTION',
 				message: `"preserveModules" does not support the "inlineDynamicImports" option.`
 			});
+		if (inputOptions.disjoinChunks)
+			error({
+				code: 'INVALID_OPTION',
+				message: '"disjoinChunks" option is not supported for "inlineDynamicImports".'
+			});
 		if (inputOptions.manualChunks)
 			error({
 				code: 'INVALID_OPTION',
@@ -111,6 +116,22 @@ function getInputOptions(rawInputOptions: GenericConfigObject): any {
 				message: 'Multiple inputs are not supported for "inlineDynamicImports".'
 			});
 	} else if (inputOptions.preserveModules) {
+		if (inputOptions.disjoinChunks)
+			error({
+				code: 'INVALID_OPTION',
+				message: '"preserveModules" does not support the "disjoinChunks" option.'
+			});
+		if (inputOptions.manualChunks)
+			error({
+				code: 'INVALID_OPTION',
+				message: '"preserveModules" does not support the "manualChunks" option.'
+			});
+		if (inputOptions.experimentalOptimizeChunks)
+			error({
+				code: 'INVALID_OPTION',
+				message: '"preserveModules" does not support the "experimentalOptimizeChunks" option.'
+			});
+	} else if (inputOptions.disjoinChunks) {
 		if (inputOptions.manualChunks)
 			error({
 				code: 'INVALID_OPTION',
@@ -464,7 +485,10 @@ function normalizeOutputOptions(
 	}
 
 	if (hasMultipleChunks) {
-		if (outputOptions.format === 'umd' || outputOptions.format === 'iife')
+		if (
+			!inputOptions.disjoinChunks &&
+			(outputOptions.format === 'umd' || outputOptions.format === 'iife')
+		)
 			error({
 				code: 'INVALID_OPTION',
 				message: 'UMD and IIFE output formats are not supported for code-splitting builds.'

@@ -283,10 +283,10 @@ export default {
   onwarn (warning, warn) {
     // skip certain warnings
     if (warning.code === 'UNUSED_EXTERNAL_IMPORT') return;
-  
+
     // throw on others
     if (warning.code === 'NON_EXISTENT_EXPORT') throw new Error(warning.message);
-  
+
     // Use default for everything else
     warn(warning);
   }
@@ -480,6 +480,11 @@ export default ({
   }]
 });
 ```
+
+#### disjoinChunks
+Type: `boolean`<br>
+CLI: `--disjoinChunks`/`--no-disjoinChunks`<br>
+Default: `false`
 
 #### preserveModules
 Type: `boolean`<br>

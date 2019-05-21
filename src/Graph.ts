@@ -24,7 +24,7 @@ import {
 	WarningHandler
 } from './rollup/types';
 import { finaliseAsset } from './utils/assetHooks';
-import { assignChunkColouringHashes } from './utils/chunkColouring';
+import { assignChunkColouringHashes, traverseDependencies } from './utils/chunkColouring';
 import { Uint8ArrayToHexString } from './utils/entryHashing';
 import { error } from './utils/error';
 import { analyseModuleExecution, sortByExecutionOrder } from './utils/executionOrder';
@@ -56,6 +56,7 @@ export default class Graph {
 	contextParse: (code: string, acornOptions?: acorn.Options) => ESTree.Program;
 	curChunkIndex = 0;
 	deoptimizationTracker: EntityPathTracker;
+	disjoinChunks: boolean;
 	// track graph build status as each graph instance is used only once
 	finished = false;
 	getModuleContext: (id: string) => string;
@@ -97,6 +98,7 @@ export default class Graph {
 				for (const key of Object.keys(cache)) cache[key][0]++;
 			}
 		}
+		this.disjoinChunks = options.disjoinChunks;
 		this.preserveModules = options.preserveModules;
 
 		this.cacheExpiry = options.experimentalCacheExpiry;
@@ -255,7 +257,7 @@ export default class Graph {
 				// entry point graph colouring, before generating the import and export facades
 				timeStart('generate chunks', 2);
 
-				if (!this.preserveModules && !inlineDynamicImports) {
+				if (!this.preserveModules && !inlineDynamicImports && !this.disjoinChunks) {
 					assignChunkColouringHashes(entryModules, manualChunkModules);
 				}
 
@@ -276,6 +278,13 @@ export default class Graph {
 						if (module.isEntryPoint || !chunk.isEmpty) {
 							chunk.entryModules = [module];
 						}
+						chunks.push(chunk);
+					}
+				} else if (this.disjoinChunks) {
+					for (const entryModule of entryModules) {
+						const chunkModulesOrdered = traverseDependencies(entryModule);
+						sortByExecutionOrder(chunkModulesOrdered);
+						const chunk = new Chunk(this, chunkModulesOrdered);
 						chunks.push(chunk);
 					}
 				} else {
@@ -318,7 +327,7 @@ export default class Graph {
 
 				// create entry point facades for entry module chunks that have tainted exports
 				const facades = [];
-				if (!this.preserveModules) {
+				if (!this.preserveModules && !this.disjoinChunks) {
 					for (const chunk of chunks) {
 						for (const entryModule of chunk.entryModules) {
 							if (chunk.facadeModule !== entryModule) {
