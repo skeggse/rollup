@@ -8,7 +8,9 @@ import {
 	InputOption,
 	RollupBuild,
 	RollupError,
-	RollupWatchOptions
+	RollupWatchOptions,
+	WarningHandler,
+	WatcherOptions
 } from '../../../src/rollup/types';
 import mergeOptions from '../../../src/utils/mergeOptions';
 import relativeId from '../../../src/utils/relativeId';
@@ -42,17 +44,18 @@ export default function watch(
 
 	const warnings = batchWarnings();
 
+	let processConfigsErr: any;
 	const initialConfigs = processConfigs(configs);
 
-	const clearScreen = initialConfigs.every(config => config.watch.clearScreen !== false);
+	const clearScreen = initialConfigs.every(
+		config => (config.watch as WatcherOptions).clearScreen !== false
+	);
 
 	const screen = alternateScreen(isTTY && clearScreen);
 	screen.open();
 
 	let watcher: Watcher;
 	let configWatcher: Watcher;
-
-	let processConfigsErr: any;
 
 	function processConfigs(configs: RollupWatchOptions[]): RollupWatchOptions[] {
 		return configs.map(options => {
@@ -70,14 +73,14 @@ export default function watch(
 			if (!result.watch) result.watch = {};
 
 			if (merged.optionError)
-				merged.inputOptions.onwarn({
+				(merged.inputOptions.onwarn as WarningHandler)({
 					code: 'UNKNOWN_OPTION',
 					message: merged.optionError
 				});
 
 			if (
-				(<RollupWatchOptions>merged.inputOptions).watch &&
-				(<RollupWatchOptions>merged.inputOptions).watch.clearScreen === false
+				(merged.inputOptions as RollupWatchOptions).watch &&
+				((merged.inputOptions as RollupWatchOptions).watch as WatcherOptions).clearScreen === false
 			) {
 				processConfigsErr = stderr;
 			}
@@ -95,13 +98,13 @@ export default function watch(
 			switch (event.code) {
 				case 'FATAL':
 					screen.close();
-					handleError(event.error, true);
+					handleError(event.error as RollupError, true);
 					process.exit(1);
 					break;
 
 				case 'ERROR':
 					warnings.flush();
-					handleError(event.error, true);
+					handleError(event.error as RollupError, true);
 					break;
 
 				case 'START':
@@ -116,13 +119,15 @@ export default function watch(
 						if (typeof input !== 'string') {
 							input = Array.isArray(input)
 								? input.join(', ')
-								: Object.keys(input)
-										.map(key => (<Record<string, string>>input)[key])
+								: Object.keys(input as Record<string, string>)
+										.map(key => (input as Record<string, string>)[key])
 										.join(', ');
 						}
 						stderr(
 							tc.cyan(
-								`bundles ${tc.bold(input)} → ${tc.bold(event.output.map(relativeId).join(', '))}...`
+								`bundles ${tc.bold(input)} → ${tc.bold(
+									(event.output as string[]).map(relativeId).join(', ')
+								)}...`
 							)
 						);
 					}
@@ -133,9 +138,9 @@ export default function watch(
 					if (!silent)
 						stderr(
 							tc.green(
-								`created ${tc.bold(event.output.map(relativeId).join(', '))} in ${tc.bold(
-									ms(event.duration)
-								)}`
+								`created ${tc.bold(
+									(event.output as string[]).map(relativeId).join(', ')
+								)} in ${tc.bold(ms(event.duration as number))}`
 							)
 						);
 					if (event.result && event.result.getTimings) {

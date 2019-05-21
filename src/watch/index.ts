@@ -1,15 +1,17 @@
 import { WatchOptions } from 'chokidar';
 import { EventEmitter } from 'events';
 import path from 'path';
-import createFilter from 'rollup-pluginutils/src/createFilter.js';
+import createFilter from 'rollup-pluginutils/src/createFilter';
 import rollup, { setWatcher } from '../rollup/index';
 import {
 	InputOptions,
+	ModuleJSON,
 	OutputOptions,
 	RollupBuild,
 	RollupCache,
 	RollupWatcher,
-	RollupWatchOptions
+	RollupWatchOptions,
+	WatcherOptions
 } from '../rollup/types';
 import mergeOptions from '../utils/mergeOptions';
 import chokidar from './chokidar';
@@ -22,13 +24,13 @@ export class Watcher {
 
 	private buildTimeout: NodeJS.Timer;
 	private invalidatedIds: Set<string> = new Set();
-	private rerun: boolean = false;
+	private rerun = false;
 	private running: boolean;
-	private succeeded: boolean = false;
+	private succeeded = false;
 	private tasks: Task[];
 
 	constructor(configs: RollupWatchOptions[]) {
-		this.emitter = new class extends EventEmitter implements RollupWatcher {
+		this.emitter = new (class extends EventEmitter implements RollupWatcher {
 			close: () => void;
 			constructor(close: () => void) {
 				super();
@@ -37,7 +39,7 @@ export class Watcher {
 				// showing the `MaxListenersExceededWarning` to the user.
 				this.setMaxListeners(Infinity);
 			}
-		}(this.close.bind(this));
+		})(this.close.bind(this));
 		this.tasks = (Array.isArray(configs) ? configs : configs ? [configs] : []).map(
 			config => new Task(this, config)
 		);
@@ -70,7 +72,7 @@ export class Watcher {
 		if (this.buildTimeout) clearTimeout(this.buildTimeout);
 
 		this.buildTimeout = setTimeout(() => {
-			this.buildTimeout = undefined;
+			this.buildTimeout = undefined as any;
 			this.invalidatedIds.forEach(id => this.emit('change', id));
 			this.invalidatedIds.clear();
 			this.emit('restart');
@@ -128,7 +130,7 @@ export class Task {
 	private watcher: Watcher;
 
 	constructor(watcher: Watcher, config: RollupWatchOptions) {
-		this.cache = null;
+		this.cache = null as any;
 		this.watcher = watcher;
 
 		this.closed = false;
@@ -141,11 +143,13 @@ export class Task {
 
 		this.outputs = outputOptions;
 		this.outputFiles = this.outputs.map(output => {
-			if (output.file || output.dir) return path.resolve(output.file || output.dir);
+			if (output.file || output.dir) return path.resolve(output.file || (output.dir as string));
+			return undefined as any;
 		});
 
-		const watchOptions = inputOptions.watch || {};
-		if ('useChokidar' in watchOptions) watchOptions.chokidar = watchOptions.useChokidar;
+		const watchOptions: WatcherOptions = inputOptions.watch || {};
+		if ('useChokidar' in watchOptions)
+			(watchOptions as any).chokidar = (watchOptions as any).useChokidar;
 		let chokidarOptions = 'chokidar' in watchOptions ? watchOptions.chokidar : !!chokidar;
 		if (chokidarOptions) {
 			chokidarOptions = {
@@ -161,7 +165,7 @@ export class Task {
 			);
 		}
 
-		this.chokidarOptions = chokidarOptions;
+		this.chokidarOptions = chokidarOptions as WatchOptions;
 		this.chokidarOptionsHash = JSON.stringify(chokidarOptions);
 
 		this.filter = createFilter(watchOptions.include, watchOptions.exclude);
@@ -177,11 +181,11 @@ export class Task {
 	invalidate(id: string, isTransformDependency: boolean) {
 		this.invalidated = true;
 		if (isTransformDependency) {
-			this.cache.modules.forEach(module => {
+			(this.cache.modules as ModuleJSON[]).forEach(module => {
 				if (!module.transformDependencies || module.transformDependencies.indexOf(id) === -1)
 					return;
 				// effective invalidation
-				module.originalCode = null;
+				module.originalCode = null as any;
 			});
 		}
 		this.watcher.invalidate(id);
@@ -207,13 +211,13 @@ export class Task {
 		setWatcher(this.watcher.emitter);
 		return rollup(options)
 			.then(result => {
-				if (this.closed) return;
+				if (this.closed) return undefined as any;
 
 				const watched = (this.watched = new Set());
 
 				this.cache = result.cache;
 				this.watchFiles = result.watchFiles;
-				this.cache.modules.forEach(module => {
+				(this.cache.modules as ModuleJSON[]).forEach(module => {
 					if (module.transformDependencies) {
 						module.transformDependencies.forEach(depId => {
 							watched.add(depId);
@@ -229,11 +233,7 @@ export class Task {
 					if (!watched.has(id)) deleteTask(id, this, this.chokidarOptionsHash);
 				});
 
-				return Promise.all(
-					this.outputs.map(output => {
-						return result.write(output);
-					})
-				).then(() => result);
+				return Promise.all(this.outputs.map(output => result.write(output))).then(() => result);
 			})
 			.then((result: RollupBuild) => {
 				this.watcher.emit('event', {

@@ -13,13 +13,9 @@ import {
 	UNKNOWN_VALUE
 } from '../values';
 import * as NodeType from './NodeType';
-import { Node, NodeBase } from './shared/Node';
+import { NodeBase } from './shared/Node';
 
 export type LiteralValue = string | boolean | null | number | RegExp | undefined;
-
-export function isLiteral(node: Node): node is Literal {
-	return node.type === NodeType.Literal;
-}
 
 export default class Literal<T = LiteralValue> extends NodeBase {
 	type: NodeType.tLiteral;
@@ -73,7 +69,7 @@ export default class Literal<T = LiteralValue> extends NodeBase {
 
 	render(code: MagicString, _options: RenderOptions) {
 		if (typeof this.value === 'string') {
-			(<[number, number][]>code.indentExclusionRanges).push([this.start + 1, this.end - 1]);
+			(code.indentExclusionRanges as [number, number][]).push([this.start + 1, this.end - 1]);
 		}
 	}
 }

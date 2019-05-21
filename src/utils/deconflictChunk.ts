@@ -74,7 +74,7 @@ function deconflictImportsEsm(
 	_dependencies: (ExternalModule | Chunk)[],
 	interop: boolean
 ) {
-	for (const variable of Array.from(imports)) {
+	for (const variable of imports) {
 		const module = variable.module;
 		const name = variable.name;
 		let proposedName: string;
@@ -102,7 +102,7 @@ function deconflictImportsOther(
 	for (const chunkOrExternalModule of dependencies) {
 		chunkOrExternalModule.variableName = getSafeName(chunkOrExternalModule.variableName, usedNames);
 	}
-	for (const variable of Array.from(imports)) {
+	for (const variable of imports) {
 		const module = variable.module;
 		if (module instanceof ExternalModule) {
 			const name = variable.name;
@@ -118,7 +118,9 @@ function deconflictImportsOther(
 			if (chunk.exportMode === 'default' || (preserveModules && variable.isNamespace)) {
 				variable.setRenderNames(null, chunk.variableName);
 			} else {
-				variable.setRenderNames(chunk.variableName, chunk.getVariableExportName(variable));
+				variable.setRenderNames(chunk.variableName, chunk.getVariableExportName(variable) as
+					| string
+					| null);
 			}
 		}
 	}
@@ -134,7 +136,7 @@ function deconflictTopLevelVariables(usedNames: NameCollection, modules: Module[
 				// this will only happen for exports in some formats
 				!(
 					variable.renderBaseName ||
-					(variable instanceof ExportDefaultVariable && variable.referencesOriginal())
+					(variable instanceof ExportDefaultVariable && variable.getOriginalVariable() !== variable)
 				)
 			) {
 				variable.setRenderNames(null, getSafeName(variable.name, usedNames));

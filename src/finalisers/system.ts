@@ -19,7 +19,7 @@ function getStarExcludes({ dependencies, exports }: ModuleDeclarations): Set<str
 }
 
 const getStarExcludesBlock = (
-	starExcludes: Set<string>,
+	starExcludes: Set<string> | undefined,
 	varOrConst: string,
 	_: string,
 	t: string,
@@ -57,8 +57,8 @@ function getExportsBlock(
 	);
 }
 
-const getHoistedExportsBlock = (exports: ChunkExports, _: string, t: string, n: string): string => {
-	return getExportsBlock(
+const getHoistedExportsBlock = (exports: ChunkExports, _: string, t: string, n: string): string =>
+	getExportsBlock(
 		exports
 			.filter(expt => expt.hoisted || expt.uninitialized)
 			.map(expt => ({ name: expt.exported, value: expt.uninitialized ? 'void 0' : expt.local })),
@@ -66,7 +66,6 @@ const getHoistedExportsBlock = (exports: ChunkExports, _: string, t: string, n: 
 		t,
 		n
 	);
-};
 
 const getMissingExportsBlock = (exports: ChunkExports, _: string, t: string, n: string): string =>
 	getExportsBlock(
@@ -97,7 +96,7 @@ export default function system(
 	const dependencyIds = dependencies.map(m => `'${m.id}'`);
 
 	const importBindings: string[] = [];
-	let starExcludes: Set<string>;
+	let starExcludes: Set<string> | undefined;
 	const setters: string[] = [];
 
 	dependencies.forEach(({ imports, reexports }) => {

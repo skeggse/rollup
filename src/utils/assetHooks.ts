@@ -1,23 +1,26 @@
 import sha256 from 'hash.js/lib/hash/sha/256';
-import { Asset, OutputBundle } from '../rollup/types';
-import { error } from './error';
+import { Asset, EmitAsset, OutputBundle } from '../rollup/types';
+import {
+	errAssetNotFinalisedForFileName,
+	errAssetReferenceIdNotFoundForFilename,
+	errAssetReferenceIdNotFoundForSetSource,
+	errAssetSourceAlreadySet,
+	errAssetSourceMissingForSetSource,
+	errInvalidAssetName,
+	errNoAssetSourceSet,
+	error
+} from './error';
 import { extname } from './path';
+import { addWithNewReferenceId } from './referenceIds';
 import { isPlainName } from './relativeId';
 import { makeUnique, renderNamePattern } from './renderNamePattern';
-
-export type EmitAsset = (name: string, source?: string | Buffer) => string;
 
 export function getAssetFileName(
 	asset: Asset,
 	existingNames: Record<string, any>,
 	assetFileNames: string
 ) {
-	if (asset.source === undefined)
-		error({
-			code: 'ASSET_SOURCE_NOT_FOUND',
-			message: `Plugin error creating asset ${asset.name} - no asset source set.`
-		});
-
+	if (asset.source === undefined) error(errNoAssetSourceSet(asset));
 	if (asset.fileName) return asset.fileName;
 
 	return makeUnique(
@@ -36,75 +39,40 @@ export function getAssetFileName(
 				case 'ext':
 					return extname(asset.name).substr(1);
 			}
+			return undefined as any;
 		}),
 		existingNames
 	);
 }
 
 export function createAssetPluginHooks(
-	assetsById: Map<string, Asset>,
+	assetsByReferenceId: Map<string, Asset>,
 	outputBundle?: OutputBundle,
 	assetFileNames?: string
 ) {
 	return {
 		emitAsset(name: string, source?: string | Buffer) {
-			if (typeof name !== 'string' || !isPlainName(name))
-				error({
-					code: 'INVALID_ASSET_NAME',
-					message: `Plugin error creating asset, name is not a plain (non relative or absolute URL) string name.`
-				});
-
-			let assetId: string;
-			do {
-				const assetHash = sha256();
-				if (assetId) {
-					// if there is a collision, chain until there isn't
-					assetHash.update(assetId);
-				} else {
-					assetHash.update(name);
-				}
-				assetId = assetHash.digest('hex').substr(0, 8);
-			} while (assetsById.has(assetId));
-
-			const asset: Asset = { name, source, fileName: undefined };
-			if (outputBundle && source !== undefined) finaliseAsset(asset, outputBundle, assetFileNames);
-			assetsById.set(assetId, asset);
-			return assetId;
+			if (typeof name !== 'string' || !isPlainName(name)) error(errInvalidAssetName(name));
+			const asset: Asset = { name, source: source as string | Buffer, fileName: undefined as any };
+			if (outputBundle && source !== undefined)
+				finaliseAsset(asset, outputBundle, assetFileNames as string);
+			return addWithNewReferenceId(asset, assetsByReferenceId, name);
 		},
-		setAssetSource(assetId: string, source?: string | Buffer) {
-			const asset = assetsById.get(assetId);
-			if (!asset)
-				error({
-					code: 'ASSET_NOT_FOUND',
-					message: `Plugin error - Unable to set asset source for unknown asset ${assetId}.`
-				});
-			if (asset.source !== undefined)
-				error({
-					code: 'ASSET_SOURCE_ALREADY_SET',
-					message: `Plugin error - Unable to set asset source for ${
-						asset.name
-					}, source already set.`
-				});
+
+		setAssetSource(assetReferenceId: string, source?: string | Buffer) {
+			const asset = assetsByReferenceId.get(assetReferenceId);
+			if (!asset) return error(errAssetReferenceIdNotFoundForSetSource(assetReferenceId));
+			if (asset.source !== undefined) return error(errAssetSourceAlreadySet(asset));
 			if (typeof source !== 'string' && !source)
-				error({
-					code: 'ASSET_SOURCE_MISSING',
-					message: `Plugin error creating asset ${name}, setAssetSource call without a source.`
-				});
+				return error(errAssetSourceMissingForSetSource(asset));
 			asset.source = source;
-			if (outputBundle) finaliseAsset(asset, outputBundle, assetFileNames);
+			if (outputBundle) finaliseAsset(asset, outputBundle, assetFileNames as string);
 		},
-		getAssetFileName(assetId: string) {
-			const asset = assetsById.get(assetId);
-			if (!asset)
-				error({
-					code: 'ASSET_NOT_FOUND',
-					message: `Plugin error - Unable to get asset filename for unknown asset ${assetId}.`
-				});
-			if (asset.fileName === undefined)
-				error({
-					code: 'ASSET_NOT_FINALISED',
-					message: `Plugin error - Unable to get asset file name for asset ${assetId}. Ensure that the source is set and that generate is called first.`
-				});
+
+		getAssetFileName(assetReferenceId: string) {
+			const asset = assetsByReferenceId.get(assetReferenceId);
+			if (!asset) return error(errAssetReferenceIdNotFoundForFilename(assetReferenceId));
+			if (asset.fileName === undefined) return error(errAssetNotFinalisedForFileName(asset));
 			return asset.fileName;
 		}
 	};
@@ -120,20 +88,22 @@ export function finaliseAsset(asset: Asset, outputBundle: OutputBundle, assetFil
 	};
 }
 
-export function createTransformEmitAsset(assetsById: Map<string, Asset>, emitAsset: EmitAsset) {
+export function createTransformEmitAsset(
+	assetsByReferenceId: Map<string, Asset>,
+	emitAsset: EmitAsset
+) {
 	const assets: Asset[] = [];
 	return {
 		assets,
 		emitAsset: (name: string, source?: string | Buffer) => {
-			const assetId = emitAsset(name, source);
-			const asset = assetsById.get(assetId);
-			// distinguish transform assets
+			const assetReferenceId = emitAsset(name, source);
+			const asset = assetsByReferenceId.get(assetReferenceId) as Asset;
 			assets.push({
-				fileName: undefined,
+				fileName: undefined as any,
 				name: asset.name,
 				source: asset.source
 			});
-			return assetId;
+			return assetReferenceId;
 		}
 	};
 }

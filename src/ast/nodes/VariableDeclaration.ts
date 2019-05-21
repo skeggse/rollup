@@ -9,13 +9,13 @@ import { getSystemExportStatement } from '../../utils/systemJsRendering';
 import { ExecutionPathOptions } from '../ExecutionPathOptions';
 import { EMPTY_PATH, ObjectPath } from '../values';
 import Variable from '../variables/Variable';
-import { isIdentifier } from './Identifier';
+import Identifier, { IdentifierWithVariable } from './Identifier';
 import * as NodeType from './NodeType';
 import { NodeBase } from './shared/Node';
 import VariableDeclarator from './VariableDeclarator';
 
 function isReassignedExportsMember(variable: Variable): boolean {
-	return variable.renderBaseName && variable.exportName && variable.isReassigned;
+	return variable.renderBaseName !== null && variable.exportName !== null && variable.isReassigned;
 }
 
 function areAllDeclarationsIncludedAndNotExported(declarations: VariableDeclarator[]): boolean {
@@ -24,7 +24,7 @@ function areAllDeclarationsIncludedAndNotExported(declarations: VariableDeclarat
 			return false;
 		}
 		if (declarator.id.type === NodeType.Identifier) {
-			if (declarator.id.variable.exportName) return false;
+			if ((declarator.id.variable as Variable).exportName) return false;
 		} else {
 			const exportedVariables: Variable[] = [];
 			declarator.id.addExportedVariables(exportedVariables);
@@ -155,14 +155,19 @@ export default class VariableDeclaration extends NodeBase {
 		for (const { node, start, separator, contentEnd, end } of separatedNodes) {
 			if (
 				!node.included ||
-				(isIdentifier(node.id) && isReassignedExportsMember(node.id.variable) && node.init === null)
+				(node.id instanceof Identifier &&
+					isReassignedExportsMember((node.id as IdentifierWithVariable).variable) &&
+					node.init === null)
 			) {
 				code.remove(start, end);
 				continue;
 			}
 			leadingString = '';
 			nextSeparatorString = '';
-			if (isIdentifier(node.id) && isReassignedExportsMember(node.id.variable)) {
+			if (
+				node.id instanceof Identifier &&
+				isReassignedExportsMember((node.id as IdentifierWithVariable).variable)
+			) {
 				if (hasRenderedContent) {
 					separatorString += ';';
 				}
@@ -171,10 +176,11 @@ export default class VariableDeclaration extends NodeBase {
 				if (options.format === 'system' && node.init !== null) {
 					if (node.id.type !== NodeType.Identifier) {
 						node.id.addExportedVariables(systemPatternExports);
-					} else if (node.id.variable.exportName) {
+					} else if ((node.id.variable as Variable).exportName) {
 						code.prependLeft(
 							code.original.indexOf('=', node.id.end) + 1,
-							` exports('${node.id.variable.safeExportName || node.id.variable.exportName}',`
+							` exports('${(node.id.variable as Variable).safeExportName ||
+								(node.id.variable as Variable).exportName}',`
 						);
 						nextSeparatorString += ')';
 					}
@@ -199,7 +205,7 @@ export default class VariableDeclaration extends NodeBase {
 			actualContentEnd = contentEnd;
 			renderedContentEnd = end;
 			hasRenderedContent = true;
-			lastSeparatorPos = separator;
+			lastSeparatorPos = separator as number;
 			separatorString = nextSeparatorString;
 		}
 		if (hasRenderedContent) {
@@ -207,7 +213,7 @@ export default class VariableDeclaration extends NodeBase {
 				code,
 				separatorString,
 				lastSeparatorPos,
-				actualContentEnd,
+				actualContentEnd as number,
 				renderedContentEnd,
 				!isNoStatement,
 				systemPatternExports

@@ -8,11 +8,11 @@ import {
 import { treeshakeNode } from '../../utils/treeshakeNode';
 import ModuleScope from '../scopes/ModuleScope';
 import ExportDefaultVariable from '../variables/ExportDefaultVariable';
-import ClassDeclaration, { isClassDeclaration } from './ClassDeclaration';
-import FunctionDeclaration, { isFunctionDeclaration } from './FunctionDeclaration';
+import ClassDeclaration from './ClassDeclaration';
+import FunctionDeclaration from './FunctionDeclaration';
 import Identifier from './Identifier';
 import * as NodeType from './NodeType';
-import { ExpressionNode, Node, NodeBase } from './shared/Node';
+import { ExpressionNode, NodeBase } from './shared/Node';
 
 const WHITESPACE = /\s/;
 
@@ -34,10 +34,6 @@ function getIdInsertPosition(code: string, declarationKeyword: string, start = 0
 	return declarationEnd + generatorStarPos + 1;
 }
 
-export function isExportDefaultDeclaration(node: Node): node is ExportDefaultDeclaration {
-	return node.type === NodeType.ExportDefaultDeclaration;
-}
-
 export default class ExportDefaultDeclaration extends NodeBase {
 	declaration: FunctionDeclaration | ClassDeclaration | ExpressionNode;
 	needsBoundaries: true;
@@ -56,10 +52,9 @@ export default class ExportDefaultDeclaration extends NodeBase {
 
 	initialise() {
 		this.included = false;
+		const declaration = this.declaration as FunctionDeclaration | ClassDeclaration;
 		this.declarationName =
-			((<FunctionDeclaration | ClassDeclaration>this.declaration).id &&
-				(<FunctionDeclaration | ClassDeclaration>this.declaration).id.name) ||
-			(<Identifier>this.declaration).name;
+			(declaration.id && declaration.id.name) || (this.declaration as Identifier).name;
 		this.variable = this.scope.addExportDefaultDeclaration(
 			this.declarationName || this.context.getModuleName(),
 			this,
@@ -71,7 +66,7 @@ export default class ExportDefaultDeclaration extends NodeBase {
 	render(code: MagicString, options: RenderOptions, { start, end }: NodeRenderOptions = BLANK) {
 		const declarationStart = getDeclarationStart(code.original, this.start);
 
-		if (isFunctionDeclaration(this.declaration)) {
+		if (this.declaration instanceof FunctionDeclaration) {
 			this.renderNamedDeclaration(
 				code,
 				declarationStart,
@@ -79,7 +74,7 @@ export default class ExportDefaultDeclaration extends NodeBase {
 				this.declaration.id === null,
 				options
 			);
-		} else if (isClassDeclaration(this.declaration)) {
+		} else if (this.declaration instanceof ClassDeclaration) {
 			this.renderNamedDeclaration(
 				code,
 				declarationStart,
@@ -87,16 +82,16 @@ export default class ExportDefaultDeclaration extends NodeBase {
 				this.declaration.id === null,
 				options
 			);
-		} else if (this.variable.referencesOriginal()) {
+		} else if (this.variable.getOriginalVariable() !== this.variable) {
 			// Remove altogether to prevent re-declaring the same variable
 			if (options.format === 'system' && this.variable.exportName) {
 				code.overwrite(
-					start,
-					end,
+					start as number,
+					end as number,
 					`exports('${this.variable.exportName}', ${this.variable.getName()});`
 				);
 			} else {
-				treeshakeNode(this, code, start, end);
+				treeshakeNode(this, code, start as number, end as number);
 			}
 			return;
 		} else if (this.variable.included) {
@@ -134,7 +129,7 @@ export default class ExportDefaultDeclaration extends NodeBase {
 		}
 		if (
 			options.format === 'system' &&
-			isClassDeclaration(this.declaration) &&
+			this.declaration instanceof ClassDeclaration &&
 			this.variable.exportName
 		) {
 			code.appendLeft(this.end, ` exports('${this.variable.exportName}', ${name});`);

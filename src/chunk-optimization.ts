@@ -31,12 +31,12 @@ export function optimizeChunks(
 
 		let execGroupIndex = 1;
 		let seekingFirstMergeCandidate = true;
-		let lastChunk: Chunk,
+		let lastChunk: Chunk = undefined as any,
 			chunk = execGroup[0],
 			nextChunk = execGroup[1];
 
 		const isMergeCandidate = (chunk: Chunk) => {
-			if (chunk.facadeModule !== null || chunk.isManualChunk) {
+			if (chunk.facadeModule !== null || chunk.manualChunkAlias !== null) {
 				return false;
 			}
 			if (!nextChunk || nextChunk.facadeModule !== null) {

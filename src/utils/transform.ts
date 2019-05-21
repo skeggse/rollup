@@ -1,19 +1,21 @@
-import * as ESTree from 'estree';
 import { decode } from 'sourcemap-codec';
-import Program from '../ast/nodes/Program';
 import Graph from '../Graph';
 import Module from '../Module';
 import {
 	Asset,
+	EmitAsset,
+	ExistingRawSourceMap,
 	Plugin,
 	PluginCache,
 	PluginContext,
 	RawSourceMap,
 	RollupError,
 	RollupWarning,
+	TransformModuleJSON,
+	TransformResult,
 	TransformSourceDescription
 } from '../rollup/types';
-import { createTransformEmitAsset, EmitAsset } from './assetHooks';
+import { createTransformEmitAsset } from './assetHooks';
 import { augmentCodeLocation, error } from './error';
 import { dirname, resolve } from './path';
 import { trackPluginCache } from './pluginDriver';
@@ -22,9 +24,9 @@ export default function transform(
 	graph: Graph,
 	source: TransformSourceDescription,
 	module: Module
-) {
+): Promise<TransformModuleJSON> {
 	const id = module.id;
-	const sourcemapChain: RawSourceMap[] = [];
+	const sourcemapChain: (RawSourceMap | { missing: true; plugin: string })[] = [];
 
 	const originalSourcemap = typeof source.map === 'string' ? JSON.parse(source.map) : source.map;
 	if (originalSourcemap && typeof originalSourcemap.mappings === 'string')
@@ -32,19 +34,25 @@ export default function transform(
 
 	const baseEmitAsset = graph.pluginDriver.emitAsset;
 	const originalCode = source.code;
-	let ast = <Program>source.ast;
+	let ast = source.ast;
 	let transformDependencies: string[];
 	let assets: Asset[];
 	let customTransformCache = false;
+	let moduleSideEffects: boolean | null = null;
 	let trackedPluginCache: { cache: PluginCache; used: boolean };
 	let curPlugin: Plugin;
 	const curSource: string = source.code;
 
-	function transformReducer(this: PluginContext, code: string, result: any, plugin: Plugin) {
+	function transformReducer(
+		this: PluginContext,
+		code: string,
+		result: TransformResult,
+		plugin: Plugin
+	) {
 		// track which plugins use the custom this.cache to opt-out of transform caching
 		if (!customTransformCache && trackedPluginCache.used) customTransformCache = true;
 		if (customTransformCache) {
-			if (result && Array.isArray(result.dependencies)) {
+			if (result && typeof result === 'object' && Array.isArray(result.dependencies)) {
 				for (const dep of result.dependencies) {
 					const depId = resolve(dirname(id), dep);
 					if (!graph.watchFiles[depId]) graph.watchFiles[depId] = true;
@@ -54,21 +62,19 @@ export default function transform(
 			// assets emitted by transform are transformDependencies
 			if (assets.length) module.transformAssets = assets;
 
-			if (result && Array.isArray(result.dependencies)) {
+			if (result && typeof result === 'object' && Array.isArray(result.dependencies)) {
 				// not great, but a useful way to track this without assuming WeakMap
-				if (!(<any>curPlugin).warnedTransformDependencies)
+				if (!(curPlugin as any).warnedTransformDependencies)
 					this.warn({
 						code: 'TRANSFORM_DEPENDENCIES_DEPRECATED',
 						message: `Returning "dependencies" from plugin transform hook is deprecated for using this.addWatchFile() instead.`
 					});
-				(<any>curPlugin).warnedTransformDependencies = true;
+				(curPlugin as any).warnedTransformDependencies = true;
 				if (!transformDependencies) transformDependencies = [];
 				for (const dep of result.dependencies)
 					transformDependencies.push(resolve(dirname(id), dep));
 			}
 		}
-
-		if (result == null) return code;
 
 		if (typeof result === 'string') {
 			result = {
@@ -76,18 +82,28 @@ export default function transform(
 				code: result,
 				map: undefined
 			};
-		} else if (typeof result.map === 'string') {
-			// `result.map` can only be a string if `result` isn't
-			result.map = JSON.parse(result.map);
+		} else if (result && typeof result === 'object') {
+			if (typeof result.map === 'string') {
+				result.map = JSON.parse(result.map);
+			}
+			if (typeof result.moduleSideEffects === 'boolean') {
+				moduleSideEffects = result.moduleSideEffects;
+			}
+		} else {
+			return code;
 		}
 
-		if (result.map && typeof result.map.mappings === 'string') {
-			result.map.mappings = decode(result.map.mappings);
+		if (result.map && typeof (result.map as ExistingRawSourceMap).mappings === 'string') {
+			(result.map as ExistingRawSourceMap).mappings = decode(
+				(result.map as ExistingRawSourceMap).mappings
+			);
 		}
 
 		// strict null check allows 'null' maps to not be pushed to the chain, while 'undefined' gets the missing map warning
 		if (result.map !== null) {
-			sourcemapChain.push(result.map || { missing: true, plugin: plugin.name });
+			sourcemapChain.push(
+				(result.map as ExistingRawSourceMap) || { missing: true, plugin: plugin.name }
+			);
 		}
 
 		ast = result.ast;
@@ -103,8 +119,8 @@ export default function transform(
 			[curSource, id],
 			transformReducer,
 			(pluginContext, plugin) => {
-				curPlugin = plugin;
-				if (plugin.cacheKey) customTransformCache = true;
+				curPlugin = plugin as Plugin;
+				if (curPlugin.cacheKey) customTransformCache = true;
 				else trackedPluginCache = trackPluginCache(pluginContext.cache);
 
 				let emitAsset: EmitAsset;
@@ -119,12 +135,12 @@ export default function transform(
 						warning.hook = 'transform';
 						pluginContext.warn(warning);
 					},
-					error(err: RollupError | string, pos?: { column: number; line: number }) {
+					error(err: RollupError | string, pos?: { column: number; line: number }): never {
 						if (typeof err === 'string') err = { message: err };
 						if (pos) augmentCodeLocation(err, pos, curSource, id);
 						err.id = id;
 						err.hook = 'transform';
-						pluginContext.error(err);
+						return pluginContext.error(err);
 					},
 					emitAsset,
 					addWatchFile(id: string) {
@@ -132,8 +148,8 @@ export default function transform(
 						transformDependencies.push(id);
 						pluginContext.addWatchFile(id);
 					},
-					setAssetSource(assetId, source) {
-						pluginContext.setAssetSource(assetId, source);
+					setAssetSource(assetReferenceId, source) {
+						pluginContext.setAssetSource(assetReferenceId, source);
 						if (!customTransformCache && !setAssetSourceErr) {
 							try {
 								this.error({
@@ -161,9 +177,10 @@ export default function transform(
 			if (!customTransformCache && setAssetSourceErr) throw setAssetSourceErr;
 
 			return {
-				ast: <ESTree.Program>ast,
+				ast: ast as any,
 				code,
 				customTransformCache,
+				moduleSideEffects,
 				originalCode,
 				originalSourcemap,
 				sourcemapChain,

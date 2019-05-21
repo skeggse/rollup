@@ -1,4 +1,5 @@
 import Module, { AstContext } from '../../Module';
+import { markModuleAndImpureDependenciesAsExecuted } from '../../utils/traverseStaticDependencies';
 import CallOptions from '../CallOptions';
 import { DeoptimizableEntity } from '../DeoptimizableEntity';
 import { ExecutionPathOptions } from '../ExecutionPathOptions';
@@ -129,12 +130,12 @@ export default class LocalVariable extends Variable {
 		return (
 			this.isReassigned ||
 			path.length > MAX_PATH_DEPTH ||
-			(this.init &&
+			((this.init &&
 				!options.hasNodeBeenAccessedAtPath(path, this.init) &&
 				this.init.hasEffectsWhenAccessedAtPath(
 					path,
 					options.addAccessedNodeAtPath(path, this.init)
-				))
+				)) as boolean)
 		);
 	}
 
@@ -143,12 +144,12 @@ export default class LocalVariable extends Variable {
 		if (path.length === 0) return false;
 		return (
 			this.isReassigned ||
-			(this.init &&
+			((this.init &&
 				!options.hasNodeBeenAssignedAtPath(path, this.init) &&
 				this.init.hasEffectsWhenAssignedAtPath(
 					path,
 					options.addAssignedNodeAtPath(path, this.init)
-				))
+				)) as boolean)
 		);
 	}
 
@@ -160,29 +161,32 @@ export default class LocalVariable extends Variable {
 		if (path.length > MAX_PATH_DEPTH) return true;
 		return (
 			this.isReassigned ||
-			(this.init &&
+			((this.init &&
 				!options.hasNodeBeenCalledAtPathWithOptions(path, this.init, callOptions) &&
 				this.init.hasEffectsWhenCalledAtPath(
 					path,
 					callOptions,
 					options.addCalledNodeAtPathWithOptions(path, this.init, callOptions)
-				))
+				)) as boolean)
 		);
 	}
 
 	include() {
 		if (!this.included) {
 			this.included = true;
+			if (!this.module.isExecuted) {
+				markModuleAndImpureDependenciesAsExecuted(this.module);
+			}
 			for (const declaration of this.declarations) {
 				// If node is a default export, it can save a tree-shaking run to include the full declaration now
 				if (!declaration.included) declaration.include(false);
-				let node = <Node>declaration.parent;
+				let node = declaration.parent as Node;
 				while (!node.included) {
 					// We do not want to properly include parents in case they are part of a dead branch
 					// in which case .include() might pull in more dead code
 					node.included = true;
 					if (node.type === NodeType.Program) break;
-					node = <Node>node.parent;
+					node = node.parent as Node;
 				}
 			}
 		}

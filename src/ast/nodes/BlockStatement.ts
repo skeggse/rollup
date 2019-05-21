@@ -8,10 +8,6 @@ import { UNKNOWN_EXPRESSION } from '../values';
 import * as NodeType from './NodeType';
 import { Node, StatementBase, StatementNode } from './shared/Node';
 
-export function isBlockStatement(node: Node): node is BlockStatement {
-	return node.type === NodeType.BlockStatement;
-}
-
 export default class BlockStatement extends StatementBase {
 	body: StatementNode[];
 	type: NodeType.tBlockStatement;
@@ -24,8 +20,8 @@ export default class BlockStatement extends StatementBase {
 	}
 
 	createScope(parentScope: Scope) {
-		this.scope = (<Node>this.parent).preventChildBlockScope
-			? <ChildScope>parentScope
+		this.scope = (this.parent as Node).preventChildBlockScope
+			? (parentScope as ChildScope)
 			: new BlockScope(parentScope);
 	}
 
@@ -33,6 +29,7 @@ export default class BlockStatement extends StatementBase {
 		for (const node of this.body) {
 			if (node.hasEffects(options)) return true;
 		}
+		return false;
 	}
 
 	include(includeAllChildrenRecursively: boolean) {

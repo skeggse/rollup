@@ -1,5 +1,172 @@
 # rollup changelog
 
+## 1.12.3
+*2019-05-19*
+
+### Bug Fixes
+* Prevent duplicate imports when exports are reexported as default exports (#2866)
+
+### Pull Requests
+* [#2755](https://github.com/rollup/rollup/pull/2755): Enable TypeScript strictNullChecks (@edsrzf)
+* [#2866](https://github.com/rollup/rollup/pull/2866): Properly deduplicate reexported default exports (@lukastaegert)
+
+## 1.12.2
+*2019-05-17*
+
+### Bug Fixes
+* Do not fail when using clearScreen:false in watchMode (#2858)
+* Properly resolve star reexports when preserving modules (#2860)
+
+### Pull Requests
+* [#2858](https://github.com/rollup/rollup/pull/2858): Declare processConfigsErr before use (@humphd)
+* [#2860](https://github.com/rollup/rollup/pull/2860): Keep nested exports with preserveModules (@TomCaserta)
+* [#2864](https://github.com/rollup/rollup/pull/2864): Cache transitive reexport detection (@lukastaegert)
+
+## 1.12.1
+*2019-05-16*
+
+### Bug Fixes
+* Extend file name sanitation to also replace "?" and "*" e.g. when preserving modules with the updated commonjs plugin (#2860)
+* Do not ignore module transformer that return an empty string (#2861)
+
+### Pull Requests
+* [#2860](https://github.com/rollup/rollup/pull/2860): Update to latest plugins and extend file name sanitation (@lukastaegert)
+* [#2861](https://github.com/rollup/rollup/pull/2861): Allow transformers to return an empty string (@lukastaegert)
+
+## 1.12.0
+*2019-05-15*
+
+### Features
+* Add `treeshake.moduleSideEffects` option to allow removing empty imports without a side-effect check (#2844)
+* Extend plugin API to allow marking modules as side-effect-free (#2844)
+* Extend `this.resolve` plugin context function with an option to skip the `resolveId` hook of the calling plugin (#2844)
+* Add `isEntry` flag to `this.getModuleInfo` plugin context function (#2844)
+* Distribute Rollup as optimized ES2015 code (#2851)
+
+### Pull Requests
+* [#2844](https://github.com/rollup/rollup/pull/2844): Add options and hooks to control module side effects (@lukastaegert)
+* [#2851](https://github.com/rollup/rollup/pull/2851): Switch to ES2015 output (@lukastaegert)
+
+## 1.11.3
+*2019-05-05*
+
+### Bug Fixes
+* Quote es3 keywords in namespace objects (#2825)
+
+### Pull Requests
+* [#2825](https://github.com/rollup/rollup/pull/2825): Add es3 support for namespace object import (@sormy)
+
+## 1.11.2
+*2019-05-04*
+
+### Bug Fixes
+* Prevent a crash when handling circular namespace exports (#2836)
+
+### Pull Requests
+* [#2836](https://github.com/rollup/rollup/pull/2836): Make sure circular `export * from X` does not stack overflow (@Swatinem)
+
+## 1.11.1
+*2019-05-04*
+
+### Bug Fixes
+* Fix an issue where rendered exports were reported as "removed" in the bundle information (#2835)
+
+### Pull Requests
+* [#2835](https://github.com/rollup/rollup/pull/2835): Fix `removedExports` to correctly track the exported item (@Swatinem)
+
+## 1.11.0
+*2019-05-03*
+
+### Features
+* Add `emitChunk` plugin context function to emit additional entry chunks that can be referenced from the code (#2809)
+* Allow `manualChunks` to be a function (#2831)
+* Omit `.js` extensions in AMD imports to make sure an AMD `baseUrl` would work (#2809)
+* Automatically use the name of the imported module as a base for dynamically imported chunks (#2809)
+* Add `resolveFileUrl` plugin hook to replace `resolveAssetUrl` and handle emitted chunks as well (#2809)
+* Add `resolve` plugin hook to replace `resolveId` and `isExternal` that returns an object (#2829)
+* Allow `resolveDynamicImport` to return an `{id, external}` object to also resolve unresolvable dynamic imports to a module (#2829)
+
+### Bug Fixes
+* Do not create invalid code if a dynamic import contains nothing but reexports (#2809)
+* Do not fail if modules that define a manual chunk depend on each other (#2809)
+* Do not fail if a module that defines a manual chunk is the dependency of a module defining a different manual chunk (#2809)
+* No longer fail for unnamed duplicate entry points but combine them (#2809)
+* Always return `string | null` from `this.resolveId` even if some `resolveId` hooks return objects (#2829)
+* Show proper warnings when `resolveDynamicImport` resolves to a non-external module that does not exist (#2829)
+
+### Pull Requests
+* [#2809](https://github.com/rollup/rollup/pull/2809): Add hook for dynamic entry chunk emission (@lukastaegert)
+* [#2821](https://github.com/rollup/rollup/pull/2821): Fix syntax error in documentation (@FFxSquall)
+* [#2829](https://github.com/rollup/rollup/pull/2829): Improve id resolution (@lukastaegert)
+* [#2831](https://github.com/rollup/rollup/pull/2831): Allow manualChunks to be a function (@lukastaegert)
+* [#2832](https://github.com/rollup/rollup/pull/2832): Improve `generateBundle` documentation (@lukastaegert)
+* [#2833](https://github.com/rollup/rollup/pull/2833): Update dependencies (@lukastaegert)
+
+## 1.10.1
+*2019-04-19*
+
+### Bug Fixes
+* Invalid options.format values will now trigger a helpful error (#2813)
+
+### Pull Requests
+* [#2812](https://github.com/rollup/rollup/pull/2812): Minor documentation update (@dnalborczyk)
+* [#2813](https://github.com/rollup/rollup/pull/2813): Catch invalid options.format values (@marijnh)
+* [#2816](https://github.com/rollup/rollup/pull/2816): Update all dependencies to fix security issues (@lukastaegert)
+
+## 1.10.0
+*2019-04-11*
+
+### Features
+* Improve generated code to polyfill `import.meta.url` (#2785)
+* Add plugin hook to configure handling of `import.meta` (#2785)
+* Improve generated code when accessing URLs of emitted assets (#2796)
+* Add plugin hook to configure the generated code when accessing URLs of emitted assets (#2796)
+
+### Bug Fixes
+* No longer resolve assets to their parent URL in some cases (#2796)
+
+### Pull Requests
+* [#2785](https://github.com/rollup/rollup/pull/2785): Refactor handling of import.meta.url and add option to configure behaviour (@lukastaegert)
+* [#2796](https://github.com/rollup/rollup/pull/2796): Improve and fix asset emission (@lukastaegert)
+
+## 1.9.3
+*2019-04-10*
+
+### Bug Fixes
+* Simplify return expressions that are evaluated before the surrounding function is bound (#2803)
+
+### Pull Requests
+* [#2803](https://github.com/rollup/rollup/pull/2803): Handle out-of-order binding of identifiers to improve tree-shaking (@lukastaegert)
+
+## 1.9.2
+*2019-04-10*
+
+### Bug Fixes
+* Allowing replacing `output.file` with `output.dir` in the `outputOptions` hook (#2802)
+
+### Pull Requests
+* [#2802](https://github.com/rollup/rollup/pull/2802): Observe modified output options in bundle.write (@lukastaegert)
+
+## 1.9.1
+*2019-04-10*
+
+### Bug Fixes
+* Make sure inline comments in dynamic imports are preserved (#2797)
+
+### Pull Requests
+* [#2797](https://github.com/rollup/rollup/pull/2797): Emit inline comments inside dynamic import (@manucorporat)
+
+## 1.9.0
+*2019-04-05*
+
+### Features
+* Add built-in support for bigint (#2789)
+
+### Pull Requests
+* [#2789](https://github.com/rollup/rollup/pull/2789): Ship with bigint support built-in (@danielgindi)
+* [#2791](https://github.com/rollup/rollup/pull/2791): Use shared extractAssignedNames from rollup-pluginutils (@lukastaegert)
+* [#2792](https://github.com/rollup/rollup/pull/2792): Test that rollup-plugin-commonjs works with preserveModules (@lukastaegert)
+
 ## 1.8.0
 *2019-04-02*
 
